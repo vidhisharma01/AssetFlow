@@ -5,10 +5,12 @@ from app.assets.router import router as assets_router
 from app.config import settings
 from app.database import Base, engine
 from app.identity.router import router as identity_router
+from app.operations.router import router as operations_router
 
 # Import models so declarative Base registers tables
 import app.identity.models  # noqa: F401
 import app.assets.models  # noqa: F401
+import app.operations.models  # noqa: F401
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -26,6 +28,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(operations_router, prefix="/api/v1/operations", tags=["Operations"])
 
 app.include_router(identity_router, prefix="/api/v1/identity", tags=["Identity"])
 app.include_router(assets_router, prefix="/api/v1/assets", tags=["Assets"])
