@@ -53,3 +53,16 @@ class AllocationResponse(AllocationBase):
     returned_at: Optional[datetime]
 
     model_config = ConfigDict(from_attributes=True)
+
+class TransferRequestCreate(BaseModel):
+    to_user_id: int
+
+class TransferRequestResponse(BaseModel):
+    id: int
+    asset_id: int
+    from_user_id: int
+    to_user_id: int
+    requested_at: datetime
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
