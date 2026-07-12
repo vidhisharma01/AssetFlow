@@ -19,6 +19,9 @@ class AssetBase(BaseModel):
     name: str
     serial_number: str
     category_id: int
+    asset_tag: Optional[str] = None
+    department: Optional[str] = None
+    location: Optional[str] = None
 
 class AssetCreate(AssetBase):
     pass
@@ -42,6 +45,7 @@ class AllocationBase(BaseModel):
     asset_id: int
     assigned_to_id: int
     notes: Optional[str] = None
+    expected_return_date: Optional[datetime] = None
 
 class AllocationCreate(AllocationBase):
     pass
@@ -53,3 +57,22 @@ class AllocationResponse(AllocationBase):
     returned_at: Optional[datetime]
 
     model_config = ConfigDict(from_attributes=True)
+
+class TransferRequestCreate(BaseModel):
+    to_user_id: int
+
+class TransferRequestResponse(BaseModel):
+    id: int
+    asset_id: int
+    from_user_id: int
+    to_user_id: int
+    requested_at: datetime
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+class AssetReturnCreate(BaseModel):
+    notes: str
+
+class AssetDetailResponse(AssetResponse):
+    allocations: List[AllocationResponse] = []
