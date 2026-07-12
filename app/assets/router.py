@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.core.enums import AssetStatus
-from app.database import get_db
+from app.dependencies import get_db
 from app.assets import schemas, service
 # from app.dependencies import get_current_user
 
@@ -25,6 +25,10 @@ def read_assets(
         category_id=category_id, 
         assigned_to_id=assigned_to_id
     )
+
+@router.post("/categories", response_model=schemas.AssetCategoryResponse)
+def create_category(category: schemas.AssetCategoryCreate, db: Session = Depends(get_db)):
+    return service.create_category(db, category=category)
 
 @router.post("/", response_model=schemas.AssetResponse)
 def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db)):

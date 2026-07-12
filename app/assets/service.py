@@ -29,6 +29,13 @@ def get_assets(
         query = query.filter(models.Asset.assigned_to_id == assigned_to_id)
     return query.offset(skip).limit(limit).all()
 
+def create_category(db: Session, category: schemas.AssetCategoryCreate):
+    db_category = models.AssetCategory(**category.model_dump())
+    db.add(db_category)
+    db.commit()
+    db.refresh(db_category)
+    return db_category
+
 def create_asset(db: Session, asset: schemas.AssetCreate):
     db_asset = models.Asset(**asset.model_dump())
     db.add(db_asset)
