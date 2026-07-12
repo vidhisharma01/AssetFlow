@@ -55,3 +55,34 @@ def allocate_asset(
     current_user: User = Depends(get_current_user)
 ):
     return service.allocate_asset(db, asset_id=asset_id, allocation=allocation, current_user_id=current_user.id)
+
+@router.post("/{asset_id}/transfer", response_model=schemas.TransferRequestResponse)
+def create_transfer_request(
+    asset_id: int,
+    transfer: schemas.TransferRequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return service.create_transfer_request(db, asset_id=asset_id, transfer=transfer, current_user_id=current_user.id)
+
+@router.post("/{asset_id}/return", response_model=schemas.AssetResponse)
+def return_asset(
+    asset_id: int,
+    return_data: schemas.AssetReturnCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return service.return_asset(db, asset_id=asset_id, return_data=return_data, current_user_id=current_user.id)
+
+@router.post("/transfers/{transfer_id}/approve", response_model=schemas.TransferRequestResponse)
+def approve_transfer_request(
+    transfer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return service.approve_transfer_request(
+        db, 
+        transfer_id=transfer_id, 
+        current_user_id=current_user.id, 
+        current_user_role=current_user.role.value
+    )
