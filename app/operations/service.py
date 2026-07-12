@@ -88,3 +88,15 @@ def update_maintenance_status(db: Session, request_id: int, update_data: Mainten
     db.commit()
     db.refresh(db_req)
     return db_req
+
+def get_bookings(db: Session, asset_id: int = None):
+    query = db.query(Booking)
+    if asset_id:
+        query = query.filter(Booking.asset_id == asset_id)
+    return query.all()
+
+def get_maintenance_requests(db: Session, asset_id: int = None):
+    query = db.query(MaintenanceRequest)
+    if asset_id:
+        query = query.filter(MaintenanceRequest.asset_id == asset_id)
+    return query.all()
