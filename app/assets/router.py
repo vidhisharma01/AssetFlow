@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app.assets import schemas, service
-# from app.dependencies import get_current_user
+from app.dependencies import get_current_user
+from app.identity.models import User
 
 router = APIRouter()
 
@@ -20,8 +21,6 @@ def allocate_asset(
     asset_id: int, 
     allocation: schemas.AllocationCreate, 
     db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user) # Uncomment when identity is ready
+    current_user: User = Depends(get_current_user)
 ):
-    # Mocking current_user_id for now
-    current_user_id = 1
-    return service.allocate_asset(db, asset_id=asset_id, allocation=allocation, current_user_id=current_user_id)
+    return service.allocate_asset(db, asset_id=asset_id, allocation=allocation, current_user_id=current_user.id)

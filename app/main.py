@@ -1,5 +1,7 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.assets.router import router as assets_router
 from app.config import settings
@@ -30,7 +32,6 @@ app.add_middleware(
 )
 
 app.include_router(operations_router, prefix="/api/v1/operations", tags=["Operations"])
-
 app.include_router(identity_router, prefix="/api/v1/identity", tags=["Identity"])
 app.include_router(assets_router, prefix="/api/v1/assets", tags=["Assets"])
 
@@ -42,3 +43,9 @@ def health_check():
         "system": settings.PROJECT_NAME,
         "version": "1.0.0",
     }
+
+
+# Mount Frontend Portal
+frontend_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend")
+if os.path.exists(frontend_dir):
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
