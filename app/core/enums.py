@@ -26,3 +26,9 @@ class MaintenanceStatus(str, Enum):
     REPORTED = "reported"
     IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
+
+
+class EmployeeStatus(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
