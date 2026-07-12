@@ -149,11 +149,13 @@ def get_kpi_dashboard(db: Session):
     
     upcoming_returns = db.query(func.count(Allocation.id)).filter(
         Allocation.returned_at.is_(None),
-        Allocation.notes.isnot(None) # Assuming expected return date might be parsed or kept here, just a mock
+        Allocation.expected_return_date >= datetime.utcnow()
     ).scalar()
     
-    # Mocking overdue return count for now, logic depends on actual field
-    overdue_returns = 0 
+    overdue_returns = db.query(func.count(Allocation.id)).filter(
+        Allocation.returned_at.is_(None),
+        Allocation.expected_return_date < datetime.utcnow()
+    ).scalar() 
     
     return {
         "assets_available": assets_available or 0,
