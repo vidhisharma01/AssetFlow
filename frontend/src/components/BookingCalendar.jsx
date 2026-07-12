@@ -2,37 +2,54 @@ import { useState, useEffect } from 'react';
 import { api } from '../api';
 
 export default function BookingCalendar() {
+  const [assets, setAssets] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [selectedAssetId, setSelectedAssetId] = useState('');
   
   // New Booking Form State
-  const [assetId, setAssetId] = useState('1');
-  const [userId, setUserId] = useState('1');
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [purpose, setPurpose] = useState('');
   
   const [overlapWarning, setOverlapWarning] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadBookings();
+    loadData();
   }, []);
 
-  const loadBookings = async () => {
+  useEffect(() => {
+    if (selectedAssetId) {
+      loadBookings(selectedAssetId);
+    }
+  }, [selectedAssetId]);
+
+  const loadData = async () => {
     try {
-      const data = await api.getBookings();
-      setBookings(data);
+      const data = await api.getAssets();
+      setAssets(data);
+      if (data.length > 0) {
+        setSelectedAssetId(data[0].id.toString());
+      }
     } catch (err) {
-      setError(err.message);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Check for overlap locally before submitting
+  const loadBookings = async (assetId) => {
+    try {
+      const data = await api.getBookings(assetId);
+      setBookings(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Local overlap check
   useEffect(() => {
-    if (!startTime || !endTime || !assetId) {
+    if (!startTime || !endTime) {
       setOverlapWarning(null);
       return;
     }
@@ -46,164 +63,138 @@ export default function BookingCalendar() {
     }
 
     const conflicting = bookings.find(b => {
-      if (b.asset_id.toString() !== assetId) return false;
-      if (['REJECTED', 'CANCELLED', 'COMPLETED'].includes(b.status)) return false;
-      
+      if (['REJECTED', 'CANCELLED'].includes(b.status)) return false;
       const bStart = new Date(b.start_time).getTime();
       const bEnd = new Date(b.end_time).getTime();
-      
       return (newStart < bEnd && newEnd > bStart);
     });
 
     if (conflicting) {
-      setOverlapWarning(`⚠️ Overlaps with an existing ${conflicting.status.toLowerCase()} booking (ID: ${conflicting.id})`);
+      setOverlapWarning(`Requested time creates a conflict with an existing booking.`);
     } else {
       setOverlapWarning(null);
     }
-  }, [startTime, endTime, assetId, bookings]);
+  }, [startTime, endTime, bookings]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (overlapWarning && overlapWarning.includes('Overlaps')) {
+    if (overlapWarning && overlapWarning.includes('conflict')) {
       alert("Cannot book: Fix the overlap first.");
       return;
     }
 
     try {
       await api.createBooking({
-        asset_id: parseInt(assetId),
-        user_id: parseInt(userId),
+        asset_id: parseInt(selectedAssetId),
         start_time: new Date(startTime).toISOString(),
         end_time: new Date(endTime).toISOString(),
         purpose
       });
-      loadBookings();
+      loadBookings(selectedAssetId);
       setStartTime('');
       setEndTime('');
       setPurpose('');
+      alert("Booking successful!");
     } catch (err) {
       alert(err.message);
     }
   };
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
-      
-      {/* Left Column: Bookings Timeline/List */}
-      <div>
-        <h2 style={{ marginBottom: '1.5rem' }}>Current Bookings</h2>
-        
-        {loading ? <p className="animate-pulse">Loading calendar data...</p> : (
-          <div className="flex flex-col" style={{ gap: '1rem' }}>
-            {error && <div style={{ color: 'var(--status-rejected-text)' }}>{error}</div>}
-            
-            {bookings.length === 0 && !loading && (
-              <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', opacity: 0.7 }}>
-                No active bookings found.
-              </div>
-            )}
+    <div className="animate-fade-in">
+      <div className="page-header">
+        <h2 className="page-title">Resource Booking</h2>
+        <select
+          className="input-field"
+          style={{ width: '260px' }}
+          value={selectedAssetId}
+          onChange={e => setSelectedAssetId(e.target.value)}
+        >
+          {assets.map(a => (
+            <option key={a.id} value={a.id}>{a.name} · {a.serial_number}</option>
+          ))}
+        </select>
+      </div>
 
-            {bookings.map(booking => (
-              <div key={booking.id} className="glass-card flex justify-between items-center" style={{ padding: '1rem' }}>
-                <div>
-                  <div className="flex items-center" style={{ gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <strong>Asset #{booking.asset_id}</strong>
-                    <span style={{ color: 'var(--text-muted)' }}>• User #{booking.user_id}</span>
-                  </div>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                    {new Date(booking.start_time).toLocaleString()} — {new Date(booking.end_time).toLocaleString()}
-                  </div>
-                  {booking.purpose && <div style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>"{booking.purpose}"</div>}
-                </div>
-                
-                <span className={`badge badge-${booking.status.toLowerCase().replace('_', '')}`}>
-                  {booking.status}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '1.25rem' }}>
+
+        {/* Timeline */}
+        <div className="glass-card" style={{ padding: '1.5rem' }}>
+          <h3 style={{ marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border)', fontSize: '0.875rem' }}>Today's Timeline</h3>
+          <div style={{ position: 'relative', minHeight: '360px', borderLeft: '1px solid var(--border)', marginLeft: '48px' }}>
+            {[9,10,11,12,13,14,15,16,17].map((hour, idx) => (
+              <div key={hour} style={{ position: 'absolute', top: `${idx * 12.5}%`, left: '-48px', width: 'calc(100% + 48px)', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ position: 'absolute', top: '-9px', left: '0', fontSize: '0.6875rem', color: 'var(--text-muted)', width: '38px' }}>
+                  {hour > 12 ? `${hour-12}pm` : `${hour}am`}
                 </span>
               </div>
             ))}
-          </div>
-        )}
-      </div>
 
-      {/* Right Column: New Booking Form */}
-      <div className="glass-card" style={{ padding: '1.5rem', height: 'fit-content' }}>
-        <h3 style={{ marginBottom: '1.5rem' }}>New Booking</h3>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label className="input-label">Asset ID</label>
-            <input 
-              type="number" 
-              className="input-field" 
-              value={assetId} 
-              onChange={e => setAssetId(e.target.value)} 
-              required 
-            />
-          </div>
-          
-          <div className="input-group">
-            <label className="input-label">User ID</label>
-            <input 
-              type="number" 
-              className="input-field" 
-              value={userId} 
-              onChange={e => setUserId(e.target.value)} 
-              required 
-            />
-          </div>
+            {bookings.filter(b => !['REJECTED','CANCELLED'].includes(b.status)).map(b => {
+              const s = new Date(b.start_time); const e_ = new Date(b.end_time);
+              const top = Math.max(0, (s.getHours() + s.getMinutes()/60 - 9) * 12.5);
+              const h   = (e_.getHours() + e_.getMinutes()/60 - s.getHours() - s.getMinutes()/60) * 12.5;
+              return (
+                <div key={b.id} style={{
+                  position: 'absolute', top: `${top}%`, height: `${Math.max(h, 3)}%`,
+                  left: '8px', right: '8px',
+                  background: 'var(--accent-dim)', border: '1px solid var(--accent)',
+                  borderRadius: '4px', padding: '4px 8px',
+                  fontSize: '0.6875rem', color: 'var(--accent-hover)', overflow: 'hidden', zIndex: 10,
+                }}>
+                  {s.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} – {e_.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+                </div>
+              );
+            })}
 
-          <div className="input-group">
-            <label className="input-label">Start Time</label>
-            <input 
-              type="datetime-local" 
-              className="input-field" 
-              value={startTime} 
-              onChange={e => setStartTime(e.target.value)} 
-              required 
-            />
+            {overlapWarning?.includes('conflict') && startTime && endTime && (() => {
+              const s = new Date(startTime); const e_ = new Date(endTime);
+              const top = Math.max(0, (s.getHours() + s.getMinutes()/60 - 9) * 12.5);
+              const h   = (e_.getHours() + e_.getMinutes()/60 - s.getHours() - s.getMinutes()/60) * 12.5;
+              return (
+                <div style={{
+                  position: 'absolute', top: `${top}%`, height: `${Math.max(h, 3)}%`,
+                  left: '8px', right: '8px',
+                  background: 'var(--s-red-bg)', border: '1.5px dashed var(--s-red)',
+                  borderRadius: '4px', padding: '4px 8px',
+                  fontSize: '0.6875rem', color: 'var(--s-red)', overflow: 'hidden', zIndex: 20,
+                }}>
+                  Conflict — unavailable
+                </div>
+              );
+            })()}
           </div>
+        </div>
 
-          <div className="input-group">
-            <label className="input-label">End Time</label>
-            <input 
-              type="datetime-local" 
-              className="input-field" 
-              value={endTime} 
-              onChange={e => setEndTime(e.target.value)} 
-              required 
-            />
-          </div>
-
-          <div className="input-group">
-            <label className="input-label">Purpose (Optional)</label>
-            <input 
-              type="text" 
-              className="input-field" 
-              value={purpose} 
-              onChange={e => setPurpose(e.target.value)} 
-              placeholder="e.g. Field Survey"
-            />
-          </div>
-          
-          {overlapWarning && (
-            <div style={{ 
-              color: overlapWarning.includes('⚠️') ? 'var(--status-rejected-text)' : 'inherit',
-              fontSize: '0.85rem',
-              marginBottom: '1rem',
-              padding: '0.5rem',
-              background: overlapWarning.includes('⚠️') ? 'rgba(239,68,68,0.1)' : 'transparent',
-              borderRadius: '4px'
-            }}>
-              {overlapWarning}
+        {/* Booking form */}
+        <div className="glass-card" style={{ padding: '1.5rem', height: 'fit-content' }}>
+          <h3 style={{ marginBottom: '1rem' }}>Book a Slot</h3>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label">Start Time</label>
+              <input type="datetime-local" className="input-field" value={startTime} onChange={e => setStartTime(e.target.value)} required />
             </div>
-          )}
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label">End Time</label>
+              <input type="datetime-local" className="input-field" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+            </div>
+            <div className="input-group" style={{ marginBottom: 0 }}>
+              <label className="input-label">Purpose (Optional)</label>
+              <input type="text" className="input-field" value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="e.g. Field survey" />
+            </div>
 
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={overlapWarning?.includes('⚠️')}>
-            Book Asset
-          </button>
-        </form>
+            {overlapWarning && (
+              <div className={`alert ${overlapWarning.includes('conflict') ? 'alert-error' : 'alert-warning'}`}>
+                {overlapWarning}
+              </div>
+            )}
+
+            <button type="submit" className="btn btn-primary w-full" disabled={!!overlapWarning?.includes('conflict')}>
+              Confirm Booking
+            </button>
+          </form>
+        </div>
       </div>
-
     </div>
   );
 }

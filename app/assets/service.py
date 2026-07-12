@@ -81,15 +81,23 @@ def allocate_asset(db: Session, asset_id: int, allocation: schemas.AllocationCre
     
     return asset
 
-def create_transfer_request(db: Session, asset_id: int, transfer: schemas.TransferRequestCreate, current_user_id: int):
+def create_transfer_request(db: Session, asset_id: int, transfer: schemas.TransferRequestCreate, current_user_id: int, current_user_role: str = "employee"):
     asset = get_asset(db, asset_id)
     
-    if asset.status != AssetStatus.ALLOCATED or asset.assigned_to_id != current_user_id:
+    if asset.status != AssetStatus.ALLOCATED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Asset must be allocated to transfer")
+        
+    is_privileged = current_user_role in ["admin", "asset_manager", "dept_head"]
+    
+    if not is_privileged and asset.assigned_to_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Asset must be allocated to you to transfer")
+    
+    # If admin creates it, the from_user is the current owner
+    from_user = asset.assigned_to_id if is_privileged else current_user_id
     
     db_transfer = models.TransferRequest(
         asset_id=asset_id,
-        from_user_id=current_user_id,
+        from_user_id=from_user,
         to_user_id=transfer.to_user_id,
         status="pending"
     )
@@ -97,6 +105,12 @@ def create_transfer_request(db: Session, asset_id: int, transfer: schemas.Transf
     db.commit()
     db.refresh(db_transfer)
     return db_transfer
+
+def get_pending_transfers(db: Session, current_user_id: int):
+    return db.query(models.TransferRequest).filter(
+        models.TransferRequest.to_user_id == current_user_id,
+        models.TransferRequest.status == "pending"
+    ).all()
 
 def get_asset_details(db: Session, asset_id: int):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()

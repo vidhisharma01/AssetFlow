@@ -63,7 +63,20 @@ def create_transfer_request(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return service.create_transfer_request(db, asset_id=asset_id, transfer=transfer, current_user_id=current_user.id)
+    return service.create_transfer_request(
+        db, 
+        asset_id=asset_id, 
+        transfer=transfer, 
+        current_user_id=current_user.id,
+        current_user_role=current_user.role.value
+    )
+
+@router.get("/transfers/pending", response_model=List[schemas.TransferRequestResponse])
+def get_pending_transfers(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return service.get_pending_transfers(db, current_user_id=current_user.id)
 
 @router.post("/{asset_id}/return", response_model=schemas.AssetResponse)
 def return_asset(

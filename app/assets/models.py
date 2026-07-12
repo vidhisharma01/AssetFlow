@@ -22,6 +22,14 @@ class Asset(Base):
     location = Column(String, index=True, nullable=True)
     category_id = Column(Integer, ForeignKey("asset_categories.id"))
     status = Column(SAEnum(AssetStatus), default=AssetStatus.AVAILABLE, nullable=False)
+    
+    # New fields for Phase 1
+    acquisition_date = Column(DateTime, nullable=True)
+    acquisition_cost = Column(String, nullable=True) # Kept as string for simplicity/display
+    condition = Column(String, nullable=True, default="Good")
+    photo_url = Column(String, nullable=True)
+    is_shared_bookable = Column(Integer, default=0) # 0 for false, 1 for true
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

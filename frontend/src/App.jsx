@@ -6,34 +6,48 @@ import OrganizationSetup from './components/OrganizationSetup';
 import AllocationTransfer from './components/AllocationTransfer';
 import BookingCalendar from './components/BookingCalendar';
 import MaintenanceWorkflow from './components/MaintenanceWorkflow';
+import AssetAudit from './components/AssetAudit';
+import Reports from './components/Reports';
+import ActivityLogs from './components/ActivityLogs';
+
+const NAV_ADMIN = [
+  { id: 'dashboard',    label: 'Dashboard'           },
+  { id: 'orgsetup',     label: 'Organization',  adminOnly: true },
+  { id: 'assets',       label: 'Assets'              },
+  { id: 'allocation',   label: 'Allocation & Transfer' },
+];
+
+const NAV_COMMON = [
+  { id: 'bookings',     label: 'Resource Booking'    },
+  { id: 'maintenance',  label: 'Maintenance'         },
+];
+
+const NAV_INSIGHTS = [
+  { id: 'audit',        label: 'Audits'              },
+  { id: 'reports',      label: 'Reports'             },
+  { id: 'logs',         label: 'Activity Logs'       },
+];
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser]         = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  // Check for existing session on load
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token      = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     if (token && storedUser) {
       setIsAuthenticated(true);
-      const parsedUser = JSON.parse(storedUser);
-      setUser(parsedUser);
-      if (parsedUser.role === 'EMPLOYEE') {
-        setActiveTab('bookings');
-      }
+      const u = JSON.parse(storedUser);
+      setUser(u);
+      setActiveTab(u.role?.toLowerCase() === 'employee' ? 'bookings' : 'dashboard');
     }
   }, []);
 
-  const handleLoginSuccess = (userData) => {
+  const handleLoginSuccess = (u) => {
     setIsAuthenticated(true);
-    setUser(userData);
-    if (userData.role === 'EMPLOYEE') {
-      setActiveTab('bookings');
-    } else {
-      setActiveTab('dashboard');
-    }
+    setUser(u);
+    setActiveTab(u.role?.toLowerCase() === 'employee' ? 'bookings' : 'dashboard');
   };
 
   const handleLogout = () => {
@@ -43,112 +57,91 @@ export default function App() {
     setUser(null);
   };
 
-  // Render the currently active component
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <Dashboard />;
-      case 'orgsetup': return <OrganizationSetup currentUser={user} />;
-      case 'assets': return <AssetRegistry />;
-      case 'allocation': return <AllocationTransfer />;
-      case 'bookings': return <BookingCalendar />;
+      case 'dashboard':   return <Dashboard setActiveTab={setActiveTab} />;
+      case 'orgsetup':    return <OrganizationSetup currentUser={user} />;
+      case 'assets':      return <AssetRegistry />;
+      case 'allocation':  return <AllocationTransfer />;
+      case 'bookings':    return <BookingCalendar />;
       case 'maintenance': return <MaintenanceWorkflow />;
-      case 'audit': return <div className="glass-card" style={{padding: '2rem'}}>Audit module coming soon</div>;
-      case 'reports': return <div className="glass-card" style={{padding: '2rem'}}>Reports module coming soon</div>;
-      case 'notifications': return <div className="glass-card" style={{padding: '2rem'}}>Notifications module coming soon</div>;
-      default: return <Dashboard />;
+      case 'audit':       return <AssetAudit />;
+      case 'reports':     return <Reports />;
+      case 'logs':        return <ActivityLogs />;
+      default:            return <Dashboard setActiveTab={setActiveTab} />;
     }
   };
 
-  // If not logged in, only render the Login screen
   if (!isAuthenticated) {
-    return (
-      <div className="container animate-fade-in">
-        <Login onLoginSuccess={handleLoginSuccess} />
-      </div>
-    );
+    return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // Main Authenticated Dashboard - Sidebar Layout
+  const role = user?.role?.toLowerCase();
+  const isAdmin    = role === 'admin';
+  const isEmployee = role === 'employee';
+
+  const NavBtn = ({ id, label }) => (
+    <button
+      className={`sidebar-btn${activeTab === id ? ' active' : ''}`}
+      onClick={() => setActiveTab(id)}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="app-layout animate-fade-in">
-      
-      {/* Sidebar Navigation */}
       <aside className="sidebar">
-        <h1 className="gradient-text" style={{ fontSize: '2rem', marginBottom: '1rem' }}>AssetFlow</h1>
-        
-        <div style={{ paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)', marginBottom: '1rem' }}>
-          <p style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>
-            {user?.first_name} {user?.last_name}
-          </p>
-          <span className={`badge badge-${user?.role?.toLowerCase() || 'employee'}`} style={{ marginTop: '0.5rem' }}>
-            {user?.role}
+        {/* Brand */}
+        <div className="sidebar-header">
+          <span className="sidebar-brand">AssetFlow</span>
+        </div>
+
+        {/* User info */}
+        <div className="sidebar-user">
+          <div className="sidebar-user-name">{user?.first_name} {user?.last_name}</div>
+          <span className={`badge badge-${role || 'employee'}`}>
+            {user?.role?.replace('_', ' ')}
           </span>
         </div>
 
+        {/* Navigation */}
         <nav className="sidebar-nav">
-          {/* Admin & Manager Only Tabs */}
-          {user?.role !== 'EMPLOYEE' && (
+          {!isEmployee && (
             <>
-              <button className={`sidebar-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
-                Dashboard
-              </button>
-              
-              {user?.role === 'ADMIN' && (
-                <button className={`sidebar-btn ${activeTab === 'orgsetup' ? 'active' : ''}`} onClick={() => setActiveTab('orgsetup')}>
-                  Organization setup
-                </button>
-              )}
-
-              <button className={`sidebar-btn ${activeTab === 'assets' ? 'active' : ''}`} onClick={() => setActiveTab('assets')}>
-                Assets
-              </button>
-              <button className={`sidebar-btn ${activeTab === 'allocation' ? 'active' : ''}`} onClick={() => setActiveTab('allocation')}>
-                Allocation & Transfer
-              </button>
+              <span className="sidebar-section-label">Management</span>
+              {NAV_ADMIN.filter(n => !n.adminOnly || isAdmin).map(n => (
+                <NavBtn key={n.id} {...n} />
+              ))}
             </>
           )}
 
-          {/* Universal Tabs */}
-          <button className={`sidebar-btn ${activeTab === 'bookings' ? 'active' : ''}`} onClick={() => setActiveTab('bookings')}>
-            Resource Booking
-          </button>
-          <button className={`sidebar-btn ${activeTab === 'maintenance' ? 'active' : ''}`} onClick={() => setActiveTab('maintenance')}>
-            Maintenance
-          </button>
-          
-          {/* Admin Only Tabs */}
-          {user?.role === 'ADMIN' && (
+          <span className="sidebar-section-label">Operations</span>
+          {NAV_COMMON.map(n => <NavBtn key={n.id} {...n} />)}
+
+          {isAdmin && (
             <>
-              <button className={`sidebar-btn ${activeTab === 'audit' ? 'active' : ''}`} onClick={() => setActiveTab('audit')}>
-                Audit
-              </button>
-              <button className={`sidebar-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
-                Reports
-              </button>
+              <span className="sidebar-section-label">Insights</span>
+              {NAV_INSIGHTS.map(n => <NavBtn key={n.id} {...n} />)}
             </>
           )}
-
-          {/* Universal Nav Items */}
-          <button className={`sidebar-btn ${activeTab === 'notifications' ? 'active' : ''}`} onClick={() => setActiveTab('notifications')}>
-            Notifications
-          </button>
         </nav>
 
-        <button 
-          className="sidebar-btn" 
-          onClick={handleLogout}
-          style={{ color: 'var(--status-rejected-text)', marginTop: 'auto' }}
-        >
-          Logout
-        </button>
+        {/* Footer */}
+        <div className="sidebar-footer">
+          <button
+            className="btn btn-secondary w-full"
+            style={{ justifyContent: 'flex-start', color: 'var(--s-red)', borderColor: 'transparent' }}
+            onClick={handleLogout}
+          >
+            Sign out
+          </button>
+        </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="main-content">
         {renderContent()}
       </main>
-
     </div>
   );
 }
-

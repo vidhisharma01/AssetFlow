@@ -10,27 +10,19 @@ export default function Login({ onLoginSuccess }) {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     try {
       const response = await fetch('http://localhost:8000/api/v1/identity/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: email, password: password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
       });
-
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || 'Login failed');
+        const err = await response.json();
+        throw new Error(err.detail || 'Invalid credentials');
       }
-
       const data = await response.json();
-      
-      // Store token securely in localStorage
       localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
-
       onLoginSuccess(data.user);
     } catch (err) {
       setError(err.message);
@@ -39,103 +31,69 @@ export default function Login({ onLoginSuccess }) {
     }
   };
 
+  const fill = (e, p) => { setEmail(e); setPassword(p); };
+
   return (
-    <div className="flex justify-center items-center" style={{ minHeight: '80vh' }}>
-      <div className="glass-card" style={{ padding: '3rem', width: '100%', maxWidth: '400px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h2 className="gradient-text" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>AssetFlow</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Sign in to continue</p>
+    <div className="login-wrap">
+      <div className="login-card animate-fade-in">
+        <div style={{ marginBottom: '1.75rem' }}>
+          <div className="login-logo">AssetFlow</div>
+          <div className="login-sub">Enterprise Asset Management</div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col" style={{ gap: '1.5rem' }}>
-          <div className="input-group">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="input-group" style={{ marginBottom: 0 }}>
             <label className="input-label">Email</label>
-            <input 
-              type="email" 
-              className="input-field" 
+            <input
+              type="email"
+              className="input-field"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@assetflow.com"
-              required 
+              onChange={e => setEmail(e.target.value)}
+              placeholder="you@company.com"
+              required
+              autoComplete="email"
             />
           </div>
 
-          <div className="input-group">
+          <div className="input-group" style={{ marginBottom: 0 }}>
             <label className="input-label">Password</label>
-            <input 
-              type="password" 
-              className="input-field" 
+            <input
+              type="password"
+              className="input-field"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              required 
+              required
+              autoComplete="current-password"
             />
           </div>
 
-          {error && (
-            <div style={{ 
-              color: 'var(--status-rejected-text)', 
-              background: 'rgba(239, 68, 68, 0.1)',
-              padding: '0.75rem',
-              borderRadius: '4px',
-              fontSize: '0.9rem',
-              textAlign: 'center'
-            }}>
-              {error}
-            </div>
-          )}
+          {error && <div className="alert alert-error">{error}</div>}
 
-          <button 
-            type="submit" 
-            className="btn btn-primary" 
-            disabled={loading}
-            style={{ width: '100%', marginTop: '0.5rem' }}
-          >
-            {loading ? 'Authenticating...' : 'Sign In'}
+          <button type="submit" className="btn btn-primary w-full" style={{ padding: '0.625rem', marginTop: '0.25rem' }} disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
 
-        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)' }}>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>New here?</p>
-          <div className="glass-card" style={{ padding: '1rem', marginBottom: '1rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-            Sign up creates an employee account<br/>
-            admin roles assigned later
-          </div>
-          <button 
-            className="btn btn-secondary" 
-            style={{ width: '100%' }}
-            onClick={() => alert("Signup endpoint ready. Wire to /api/v1/identity/auth/signup")}
-          >
-            Create Account
+        <hr className="divider" />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <p className="text-muted text-sm" style={{ marginBottom: '0.5rem' }}>Quick access</p>
+          <button className="btn btn-secondary w-full" onClick={() => fill('admin@assetflow.com','password123')}>
+            Sign in as Admin
+          </button>
+          <button className="btn btn-secondary w-full" onClick={() => fill('employee@assetflow.com','password123')}>
+            Sign in as Employee
           </button>
         </div>
 
-        <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border-color)', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-            Or use a 1-click demo account:
-          </p>
-          <div className="flex flex-col" style={{ gap: '0.75rem' }}>
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => {
-                setEmail('admin@assetflow.com');
-                setPassword('password123');
-              }}
-            >
-              👑 Fill Admin Credentials
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => {
-                setEmail('employee@assetflow.com');
-                setPassword('password123');
-              }}
-            >
-              👤 Fill Employee Credentials
-            </button>
-          </div>
-        </div>
-
+        <p style={{ marginTop: '1.25rem', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+          No account?{' '}
+          <span style={{ color: 'var(--accent-hover)', cursor: 'pointer', fontWeight: 500 }}
+            onClick={() => alert('Signup: POST /api/v1/identity/auth/signup')}>
+            Request access
+          </span>
+        </p>
       </div>
     </div>
   );

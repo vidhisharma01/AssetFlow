@@ -1,113 +1,87 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 
+const COLUMNS = [
+  { id: 'REPORTED',            label: 'Reported',           color: 'var(--s-orange)' },
+  { id: 'APPROVED',            label: 'Approved',           color: 'var(--s-blue)'   },
+  { id: 'TECHNICIAN_ASSIGNED', label: 'Tech Assigned',      color: 'var(--s-purple)' },
+  { id: 'IN_PROGRESS',         label: 'In Progress',        color: 'var(--s-yellow)' },
+  { id: 'RESOLVED',            label: 'Resolved',           color: 'var(--s-green)'  },
+];
+
 export default function MaintenanceWorkflow() {
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
-  // New Request Form State
-  const [assetId, setAssetId] = useState('1');
-  const [requesterId, setRequesterId] = useState('1');
-  const [issue, setIssue] = useState('');
-  
-  useEffect(() => {
-    loadRequests();
-  }, []);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState('');
+
+  useEffect(() => { loadRequests(); }, []);
 
   const loadRequests = async () => {
-    try {
-      const data = await api.getMaintenanceRequests();
-      setRequests(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    try { setRequests(await api.getMaintenanceRequests()); }
+    catch (e) { setError(e.message); }
+    finally { setLoading(false); }
   };
 
-  const handleCreate = async (e) => {
+  const onDragStart = (e, id) => e.dataTransfer.setData('id', id);
+  const onDragOver  = (e)     => e.preventDefault();
+
+  const onDrop = async (e, newStatus) => {
     e.preventDefault();
-    try {
-      await api.createMaintenanceRequest({
-        asset_id: parseInt(assetId),
-        requester_id: parseInt(requesterId),
-        issue_description: issue
-      });
-      setIssue('');
-      loadRequests();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const updateStatus = async (id, newStatus) => {
-    try {
-      await api.updateMaintenanceStatus(id, { status: newStatus });
-      loadRequests();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-
-  const Column = ({ title, statusFilter, statusType }) => {
-    const colRequests = requests.filter(r => r.status === statusFilter);
-    
-    return (
-      <div className="glass-card flex-col" style={{ padding: '1rem', minHeight: '300px' }}>
-        <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', display: 'flex', justifyContent: 'space-between' }}>
-          {title}
-          <span className="badge" style={{ background: 'rgba(255,255,255,0.1)' }}>{colRequests.length}</span>
-        </h3>
-        
-        <div className="flex flex-col" style={{ gap: '0.75rem' }}>
-          {colRequests.map(req => (
-            <div key={req.id} className="glass-card animate-fade-in" style={{ padding: '1rem', background: 'var(--bg-primary)' }}>
-              <div className="flex justify-between items-center" style={{ marginBottom: '0.5rem' }}>
-                <strong>Asset #{req.asset_id}</strong>
-                <span className={`badge badge-${statusType}`}>{req.status}</span>
-              </div>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                {req.issue_description}
-              </p>
-              
-              {/* Action Buttons based on status */}
-              <div className="flex" style={{ gap: '0.5rem' }}>
-                {statusFilter === 'REPORTED' && (
-                  <button onClick={() => updateStatus(req.id, 'IN_PROGRESS')} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', width: '100%' }}>
-                    Start Work
-                  </button>
-                )}
-                {statusFilter === 'IN_PROGRESS' && (
-                  <button onClick={() => updateStatus(req.id, 'RESOLVED')} className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', width: '100%' }}>
-                    Mark Resolved
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    const id = e.dataTransfer.getData('id');
+    if (!id) return;
+    setRequests(prev => prev.map(r => r.id.toString() === id ? { ...r, status: newStatus } : r));
+    try { await api.updateMaintenanceStatus(id, { status: newStatus }); }
+    catch (e) { alert(e.message); loadRequests(); }
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center" style={{ marginBottom: '1.5rem' }}>
-        <h2>Maintenance Workflow</h2>
-        
-        {/* Simple popover form (inline for now) */}
-        <form onSubmit={handleCreate} className="flex items-center" style={{ gap: '0.5rem' }}>
-          <input type="number" className="input-field" value={assetId} onChange={e => setAssetId(e.target.value)} style={{ width: '80px', padding: '0.5rem' }} title="Asset ID" required />
-          <input type="text" className="input-field" value={issue} onChange={e => setIssue(e.target.value)} placeholder="Describe issue..." style={{ padding: '0.5rem' }} required />
-          <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem 1rem' }}>+ Report Issue</button>
-        </form>
+    <div className="animate-fade-in">
+      <div className="page-header">
+        <h2 className="page-title">Maintenance</h2>
       </div>
+      {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-      {loading ? <p className="animate-pulse">Loading tickets...</p> : (
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-          <Column title="Reported" statusFilter="REPORTED" statusType="reported" />
-          <Column title="In Progress" statusFilter="IN_PROGRESS" statusType="inprogress" />
-          <Column title="Resolved" statusFilter="RESOLVED" statusType="approved" />
+      {loading ? <p className="animate-pulse">Loading board…</p> : (
+        <div className="kanban-wrap">
+          {COLUMNS.map(col => {
+            const items = requests.filter(r => r.status === col.id);
+            return (
+              <div key={col.id} className="kanban-col" onDragOver={onDragOver} onDrop={e => onDrop(e, col.id)}>
+                <div className="kanban-col-header">
+                  <span style={{ color: col.color }}>{col.label}</span>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.75rem' }}>
+                    {items.length}
+                  </span>
+                </div>
+                <div className="kanban-col-body">
+                  {items.map(r => (
+                    <div
+                      key={r.id}
+                      className="kanban-card"
+                      draggable
+                      onDragStart={e => onDragStart(e, r.id)}
+                    >
+                      <div className="kanban-card-title">Asset #{r.asset_id}</div>
+                      <div className="kanban-card-meta" style={{ marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+                        {r.issue_description}
+                      </div>
+                      <div className="kanban-card-meta">
+                        <span>Reporter #{r.requester_id}</span>
+                        <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>
+                          · {new Date(r.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {items.length === 0 && (
+                    <div style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.75rem', fontStyle: 'italic' }}>
+                      Drop here
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
