@@ -4,7 +4,8 @@ from typing import List, Optional
 from app.core.enums import AssetStatus
 from app.dependencies import get_db
 from app.assets import schemas, service
-# from app.dependencies import get_current_user
+from app.dependencies import get_current_user
+from app.identity.models import User
 
 router = APIRouter()
 
@@ -51,39 +52,6 @@ def allocate_asset(
     asset_id: int, 
     allocation: schemas.AllocationCreate, 
     db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user) # Uncomment when identity is ready
+    current_user: User = Depends(get_current_user)
 ):
-    # Mocking current_user_id for now
-    current_user_id = 1
-    return service.allocate_asset(db, asset_id=asset_id, allocation=allocation, current_user_id=current_user_id)
-
-@router.post("/{asset_id}/transfer", response_model=schemas.TransferRequestResponse)
-def create_transfer_request(
-    asset_id: int,
-    transfer: schemas.TransferRequestCreate,
-    db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user)
-):
-    current_user_id = 1 # Assuming user 1 is logged in
-    return service.create_transfer_request(db, asset_id=asset_id, transfer=transfer, current_user_id=current_user_id)
-
-@router.post("/{asset_id}/return", response_model=schemas.AssetResponse)
-def return_asset(
-    asset_id: int,
-    return_data: schemas.AssetReturnCreate,
-    db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user)
-):
-    current_user_id = 1
-    return service.return_asset(db, asset_id=asset_id, return_data=return_data, current_user_id=current_user_id)
-
-@router.post("/transfers/{transfer_id}/approve", response_model=schemas.TransferRequestResponse)
-def approve_transfer_request(
-    transfer_id: int,
-    db: Session = Depends(get_db),
-    # current_user = Depends(get_current_user)
-):
-    # Mocking user 2 with a manager role
-    current_user_id = 2
-    current_user_role = "asset_manager"
-    return service.approve_transfer_request(db, transfer_id=transfer_id, current_user_id=current_user_id, current_user_role=current_user_role)
+    return service.allocate_asset(db, asset_id=asset_id, allocation=allocation, current_user_id=current_user.id)

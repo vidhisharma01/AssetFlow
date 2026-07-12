@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
+from pydantic import BaseModel, ConfigDict, Field
 from app.core.enums import BookingStatus, MaintenanceStatus
 
 # Booking Schemas
@@ -24,8 +24,7 @@ class BookingResponse(BookingBase):
     user_id: int
     status: BookingStatus
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # Maintenance Schemas
 class MaintenanceBase(BaseModel):
@@ -49,5 +48,4 @@ class MaintenanceResponse(MaintenanceBase):
     updated_at: datetime
     resolved_at: Optional[datetime] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
