@@ -18,7 +18,11 @@ def get_assets(
     limit: int = 100, 
     status: Optional[AssetStatus] = None,
     category_id: Optional[int] = None,
-    assigned_to_id: Optional[int] = None
+    assigned_to_id: Optional[int] = None,
+    asset_tag: Optional[str] = None,
+    serial_number: Optional[str] = None,
+    department: Optional[str] = None,
+    location: Optional[str] = None
 ):
     query = db.query(models.Asset)
     if status:
@@ -27,6 +31,14 @@ def get_assets(
         query = query.filter(models.Asset.category_id == category_id)
     if assigned_to_id:
         query = query.filter(models.Asset.assigned_to_id == assigned_to_id)
+    if asset_tag:
+        query = query.filter(models.Asset.asset_tag == asset_tag)
+    if serial_number:
+        query = query.filter(models.Asset.serial_number == serial_number)
+    if department:
+        query = query.filter(models.Asset.department == department)
+    if location:
+        query = query.filter(models.Asset.location == location)
     return query.offset(skip).limit(limit).all()
 
 def create_category(db: Session, category: schemas.AssetCategoryCreate):
@@ -86,7 +98,41 @@ def create_transfer_request(db: Session, asset_id: int, transfer: schemas.Transf
     db.refresh(db_transfer)
     return db_transfer
 
-def approve_transfer_request(db: Session, transfer_id: int, current_user_id: int):
+def get_asset_details(db: Session, asset_id: int):
+    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+    return asset
+
+def return_asset(db: Session, asset_id: int, return_data: schemas.AssetReturnCreate, current_user_id: int):
+    asset = get_asset(db, asset_id)
+    
+    if asset.status != AssetStatus.ALLOCATED:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Asset is not currently allocated")
+        
+    active_allocation = db.query(models.Allocation).filter(
+        models.Allocation.asset_id == asset.id,
+        models.Allocation.returned_at == None
+    ).first()
+    
+    if active_allocation:
+        active_allocation.returned_at = datetime.utcnow()
+        if active_allocation.notes:
+            active_allocation.notes += f"\nReturn Notes: {return_data.notes}"
+        else:
+            active_allocation.notes = f"Return Notes: {return_data.notes}"
+            
+    asset.status = AssetStatus.AVAILABLE
+    asset.assigned_to_id = None
+    
+    db.commit()
+    db.refresh(asset)
+    return asset
+
+def approve_transfer_request(db: Session, transfer_id: int, current_user_id: int, current_user_role: str = "asset_manager"):
+    if current_user_role not in ["asset_manager", "dept_head", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to approve transfers")
+
     transfer = db.query(models.TransferRequest).filter(models.TransferRequest.id == transfer_id).first()
     if not transfer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transfer request not found")

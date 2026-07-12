@@ -15,6 +15,10 @@ def read_assets(
     status: Optional[AssetStatus] = None,
     category_id: Optional[int] = None,
     assigned_to_id: Optional[int] = None,
+    asset_tag: Optional[str] = None,
+    serial_number: Optional[str] = None,
+    department: Optional[str] = None,
+    location: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     return service.get_assets(
@@ -23,7 +27,11 @@ def read_assets(
         limit=limit, 
         status=status, 
         category_id=category_id, 
-        assigned_to_id=assigned_to_id
+        assigned_to_id=assigned_to_id,
+        asset_tag=asset_tag,
+        serial_number=serial_number,
+        department=department,
+        location=location
     )
 
 @router.post("/categories", response_model=schemas.AssetCategoryResponse)
@@ -33,6 +41,10 @@ def create_category(category: schemas.AssetCategoryCreate, db: Session = Depends
 @router.post("/", response_model=schemas.AssetResponse)
 def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db)):
     return service.create_asset(db, asset=asset)
+
+@router.get("/{asset_id}", response_model=schemas.AssetDetailResponse)
+def read_asset_details(asset_id: int, db: Session = Depends(get_db)):
+    return service.get_asset_details(db, asset_id=asset_id)
 
 @router.post("/{asset_id}/allocate", response_model=schemas.AssetResponse)
 def allocate_asset(
@@ -55,12 +67,23 @@ def create_transfer_request(
     current_user_id = 1 # Assuming user 1 is logged in
     return service.create_transfer_request(db, asset_id=asset_id, transfer=transfer, current_user_id=current_user_id)
 
+@router.post("/{asset_id}/return", response_model=schemas.AssetResponse)
+def return_asset(
+    asset_id: int,
+    return_data: schemas.AssetReturnCreate,
+    db: Session = Depends(get_db),
+    # current_user = Depends(get_current_user)
+):
+    current_user_id = 1
+    return service.return_asset(db, asset_id=asset_id, return_data=return_data, current_user_id=current_user_id)
+
 @router.post("/transfers/{transfer_id}/approve", response_model=schemas.TransferRequestResponse)
 def approve_transfer_request(
     transfer_id: int,
     db: Session = Depends(get_db),
     # current_user = Depends(get_current_user)
 ):
-    # Mocking as user 2 since user 2 is receiving it in tests
+    # Mocking user 2 with a manager role
     current_user_id = 2
-    return service.approve_transfer_request(db, transfer_id=transfer_id, current_user_id=current_user_id)
+    current_user_role = "asset_manager"
+    return service.approve_transfer_request(db, transfer_id=transfer_id, current_user_id=current_user_id, current_user_role=current_user_role)
