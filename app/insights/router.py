@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
+import io
+import csv
 
 from app.database import get_db
 from app.insights import schemas, service
@@ -68,3 +71,43 @@ def mark_notification_read_api(notification_id: int, db: Session = Depends(get_d
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     return notification
+
+# --- Detailed Analytics & Logs ---
+
+@router.get("/activity-logs", response_model=List[schemas.ActivityLogResponse])
+def get_activity_logs_api(limit: int = 100, db: Session = Depends(get_db)):
+    """Fetch the full activity audit log."""
+    return service.get_activity_logs(db, limit)
+
+@router.get("/reports/utilization", response_model=List[schemas.AssetUtilizationReport])
+def get_utilization_report_api(db: Session = Depends(get_db)):
+    """Asset utilization trends (most used vs idle)."""
+    return service.get_asset_utilization(db)
+
+@router.get("/reports/maintenance", response_model=List[schemas.MaintenanceFrequencyReport])
+def get_maintenance_report_api(db: Session = Depends(get_db)):
+    """Maintenance frequency by asset."""
+    return service.get_maintenance_frequency(db)
+
+@router.get("/reports/heatmap", response_model=List[schemas.BookingHeatmapReport])
+def get_booking_heatmap_api(db: Session = Depends(get_db)):
+    """Resource booking heatmap (peak usage windows)."""
+    return service.get_booking_heatmap(db)
+
+@router.get("/reports/export/csv")
+def export_utilization_csv_api(db: Session = Depends(get_db)):
+    """Export the asset utilization report as a CSV file."""
+    data = service.get_asset_utilization(db)
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Asset ID", "Asset Name", "Allocation Count"])
+    for row in data:
+        writer.writerow([row["asset_id"], row["asset_name"], row["allocation_count"]])
+        
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=asset_utilization.csv"}
+    )
