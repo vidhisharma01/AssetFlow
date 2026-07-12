@@ -30,7 +30,6 @@ app.add_middleware(
 )
 
 app.include_router(operations_router, prefix="/api/v1/operations", tags=["Operations"])
-
 app.include_router(identity_router, prefix="/api/v1/identity", tags=["Identity"])
 app.include_router(assets_router, prefix="/api/v1/assets", tags=["Assets"])
 
