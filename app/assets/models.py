@@ -17,6 +17,9 @@ class Asset(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
     serial_number = Column(String, unique=True, index=True, nullable=False)
+    asset_tag = Column(String, unique=True, index=True, nullable=True)
+    department = Column(String, index=True, nullable=True)
+    location = Column(String, index=True, nullable=True)
     category_id = Column(Integer, ForeignKey("asset_categories.id"))
     status = Column(SAEnum(AssetStatus), default=AssetStatus.AVAILABLE, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -36,6 +39,7 @@ class Allocation(Base):
     assigned_to_id = Column(Integer, nullable=False)
     assigned_by_id = Column(Integer, nullable=False)
     allocated_at = Column(DateTime, default=datetime.utcnow)
+    expected_return_date = Column(DateTime, nullable=True)
     returned_at = Column(DateTime, nullable=True)
     notes = Column(String)
 
