@@ -89,3 +89,12 @@ class AssetUtilizationReport(BaseModel):
     asset_name: str
     allocation_count: int
     total_days_allocated: int
+
+class MaintenanceFrequencyReport(BaseModel):
+    asset_id: int
+    asset_name: str
+    maintenance_count: int
+
+class BookingHeatmapReport(BaseModel):
+    date: date
+    booking_count: int

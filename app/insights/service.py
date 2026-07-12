@@ -164,3 +164,53 @@ def get_kpi_dashboard(db: Session):
         "upcoming_returns": upcoming_returns or 0,
         "overdue_returns": overdue_returns
     }
+
+def get_activity_logs(db: Session, limit: int = 100):
+    return db.query(ActivityLog).order_by(ActivityLog.created_at.desc()).limit(limit).all()
+
+def get_asset_utilization(db: Session):
+    results = db.query(
+        Asset.id,
+        Asset.name,
+        func.count(Allocation.id).label('allocation_count')
+    ).outerjoin(Allocation, Asset.id == Allocation.asset_id).group_by(Asset.id).order_by(func.count(Allocation.id).desc()).all()
+    
+    return [
+        {
+            "asset_id": r[0],
+            "asset_name": r[1],
+            "allocation_count": r[2],
+            "total_days_allocated": 0 
+        }
+        for r in results
+    ]
+
+def get_maintenance_frequency(db: Session):
+    results = db.query(
+        Asset.id,
+        Asset.name,
+        func.count(MaintenanceRequest.id).label('maintenance_count')
+    ).outerjoin(MaintenanceRequest, Asset.id == MaintenanceRequest.asset_id).group_by(Asset.id).order_by(func.count(MaintenanceRequest.id).desc()).all()
+    
+    return [
+        {
+            "asset_id": r[0],
+            "asset_name": r[1],
+            "maintenance_count": r[2]
+        }
+        for r in results
+    ]
+
+def get_booking_heatmap(db: Session):
+    results = db.query(
+        func.date(Booking.start_time).label('date'),
+        func.count(Booking.id).label('booking_count')
+    ).group_by(func.date(Booking.start_time)).all()
+    
+    return [
+        {
+            "date": r[0] or date.today(),
+            "booking_count": r[1]
+        }
+        for r in results
+    ]
