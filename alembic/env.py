@@ -13,9 +13,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from app.config import settings
 from app.database import Base
 # Import all models so metadata knows about them
-import app.identity.models  # noqa: F401
-import app.assets.models  # noqa: F401
-import app.operations.models  # noqa: F401
+from app.assets import models
+from app.identity import models
+from app.operations import models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

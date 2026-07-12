@@ -17,6 +17,10 @@ except ImportError:
 
 router = APIRouter()
 
+@router.get("/bookings", response_model=List[schemas.BookingResponse])
+def get_bookings(asset_id: int = None, db: Session = Depends(get_db)):
+    return service.get_bookings(db, asset_id)
+
 @router.post("/bookings", response_model=schemas.BookingResponse, status_code=status.HTTP_201_CREATED)
 def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
     user_id = current_user.id if hasattr(current_user, "id") else current_user.get("id", 1)
@@ -25,6 +29,10 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
 @router.put("/bookings/{booking_id}/status", response_model=schemas.BookingResponse)
 def update_booking_status(booking_id: int, new_status: BookingStatus, db: Session = Depends(get_db)):
     return service.update_booking_status(db=db, booking_id=booking_id, new_status=new_status)
+
+@router.get("/maintenance", response_model=List[schemas.MaintenanceResponse])
+def get_maintenance_requests(asset_id: int = None, db: Session = Depends(get_db)):
+    return service.get_maintenance_requests(db, asset_id)
 
 @router.post("/maintenance", response_model=schemas.MaintenanceResponse, status_code=status.HTTP_201_CREATED)
 def raise_maintenance_request(request: schemas.MaintenanceCreate, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
